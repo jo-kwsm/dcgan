@@ -11,7 +11,7 @@ def get_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--dataset_dir",
         type=str,
-        default="dataset/img78/",
+        default="dataset/img_78/",
         help="path to a dataset dirctory",
     )
     parser.add_argument(

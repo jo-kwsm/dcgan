@@ -8,6 +8,8 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
+__all__ = ["get_dataloader"]
+
 """
 Copyright (c) 2019 Yutaro Ogawa
 """
@@ -66,11 +68,31 @@ class GANImgDataset(Dataset):
         img = Image.open(image_file_path)
         img_transformed = self.transform(img)
 
-        return img
+        return img_transformed
 
 
 def data_test():
-    # TODO テストを追加
+    from transformer import ImageTransform
+    mean = (0.5,)
+    std = (0.5,)
+
+    # DataLoaderを作成
+    batch_size = 64
+    
+    train_dataloader = get_dataloader(
+        csv_file="csv/data.csv",
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=8,
+        pin_memory=True,
+        drop_last=True,
+        transform=ImageTransform(mean, std),
+    )
+
+    # 動作の確認
+    batch_iterator = iter(train_dataloader)  # イテレータに変換
+    imges = next(batch_iterator)  # 1番目の要素を取り出す
+    print(imges.size())  # torch.Size([64, 1, 64, 64])
 
 
 if __name__ == "__main__":
