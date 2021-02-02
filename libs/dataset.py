@@ -23,7 +23,7 @@ def get_dataloader(
     transform: Optional[transforms.Compose] = None,
 ) -> DataLoader:
 
-    data = COCODataset(
+    data = GANImgDataset(
         csv_file,
         transform=transform,
     )
