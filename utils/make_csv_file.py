@@ -45,9 +45,7 @@ def main() -> None:
     os.makedirs(args.save_dir, exist_ok=True)
 
     # 保存
-    train_df.to_csv(os.path.join(args.save_dir, "train.csv"), index=None)
-    val_df.to_csv(os.path.join(args.save_dir, "val.csv"), index=None)
-    test_df.to_csv(os.path.join(args.save_dir, "test.csv"), index=None)
+    df.to_csv(os.path.join(args.save_dir, "data.csv"), index=None)
 
     print("Finished making csv files.")
 
