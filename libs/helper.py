@@ -14,12 +14,12 @@ __all__ = ["train", "evaluate"]
 
 def do_one_iteration(
     sample: Dict[str, Any],
-    model: nn.Module,
+    model: Dict[str, nn.Module],
     criterion: Any,
     device: str,
     iter_type: str,
-    optimizer: Optional[optim.Optimizer] = None,
-) -> Tuple[int, float, np.ndarray, np.ndarray]:
+    optimizer: Dict[str, Optional[optim.Optimizer]] = None,
+) -> Tuple[int, float]:
 
     if iter_type not in ["train", "evaluate"]:
         raise ValueError("iter_type must be either 'train' or 'evaluate'.")
@@ -28,31 +28,45 @@ def do_one_iteration(
         raise ValueError("optimizer must be set during training.")
 
     x = sample["img"].to(device)
-    heatmap_target = sample["heatmap_target"].to(device)
-    heat_mask = sample["heat_mask"].to(device)
-    paf_target = sample["paf_target"].to(device)
-    paf_mask = sample["paf_mask"].to(device)
-
     batch_size = x.shape[0]
 
-    _, saved_for_loss = model(x)
-    loss = criterion(saved_for_loss, heatmap_target, heat_mask, paf_target, paf_mask)
+    label_real = torch.full((batch_size,), 1).to(device)
+    label_fake = torch.full((batch_size,), 0).to(device)
 
-    # TODO 評価指標を計算
-    # accs = calc_accuracy(output, t, topk=(1,))
-    # acc1 = accs[0]
-    # _, pred = output.max(dim=1)
-    # gt = t.to("cpu").numpy()
-    # pred = pred.to("cpu").numpy()
-    pred = heatmap_target.to("cpu")
-    gt = heatmap_target.to("cpu")
+    input_z = torch.randn(mini_batch_size, z_dim).to(device)
+    input_z = input_z.view(input_z.size(0), input_z.size(1), 1, 1)
+
+    fake_images = model["G"](input_z)
+    d_out_fake = model["D"](fake_images)
+    d_out_real = model["D"](imges)
+
+    loss_real = criterion(d_out_real.view(-1), label_real)
+    loss_fake = criterion(d_out_fake.view(-1), label_fake)
+    d_loss = loss_real + loss_fake
 
     if iter_type == "train" and optimizer is not None:
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        optimizer["G"].zero_grad()
+        optimizer["D"].zero_grad()
+        d_loss.backward()
+        optimizer["D"].step()
 
-    return batch_size, loss.item(), gt, pred
+    input_z = torch.randn(mini_batch_size, z_dim).to(device)
+    input_z = input_z.view(input_z.size(0), input_z.size(1), 1, 1)
+
+    fake_images = model["G"](input_z)
+    d_out_fake = model["D"](fake_images)
+
+    g_loss = criterion(d_out_fake.view(-1), label_real)
+
+    if iter_type == "train" and optimizer is not None:
+        optimizer["G"].zero_grad()
+        optimizer["D"].zero_grad()
+        g_loss.backward()
+        optimizer["G"].step()
+
+    loss = d_loss + g_loss
+
+    return batch_size, loss.item()
 
 
 def train(
@@ -77,24 +91,18 @@ def train(
         prefix="Epoch: [{}]".format(epoch),
     )
 
-    gts = []
-    preds = []
-
-    model.train()
+    for v in model.values():
+        v.train()
 
     end=time.time()
-    for i, (imgs, heatmap_target, heat_mask, paf_target, paf_mask) in enumerate(loader):
+    for i, imgs in enumerate(loader):
         sample = {
             "img": imgs,
-            "heatmap_target": heatmap_target,
-            "heat_mask": heat_mask,
-            "paf_target": paf_target,
-            "paf_mask": paf_mask,
         }
 
         data_time.update(time.time() - end)
 
-        batch_size, loss, gt, pred = do_one_iteration(
+        batch_size, loss = do_one_iteration(
             sample,
             model,
             criterion,
@@ -104,9 +112,6 @@ def train(
         )
 
         losses.update(loss, batch_size)
-
-        gts += list(gt)
-        preds += list(pred)
 
         batch_time.update(time.time()-end)
         end = time.time()
@@ -125,22 +130,16 @@ def evaluate(
 ) -> float:
     losses = AverageMeter("Loss", ":.4e")
 
-    gts = []
-    preds = []
-
-    model.eval()
+    for v in model.values():
+        v.eval()
 
     with torch.no_grad():
-        for img, heatmap_target, heat_mask, paf_target, paf_mask in loader:
+        for img in loader:
             sample = {
             "img": img,
-            "heatmap_target": heatmap_target,
-            "heat_mask": heat_mask,
-            "paf_target": paf_target,
-            "paf_mask": paf_mask,
         }
 
-            batch_size, loss, gt, pred = do_one_iteration(
+            batch_size, loss, = do_one_iteration(
                 sample,
                 model,
                 criterion,
@@ -149,10 +148,5 @@ def evaluate(
             )
 
             losses.update(loss, batch_size)
-
-            gts += list(gt)
-            preds += list(pred)
-
-            # TODO object detection の評価指標計算
 
     return losses.get_average()
