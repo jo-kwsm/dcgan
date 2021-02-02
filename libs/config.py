@@ -10,14 +10,17 @@ __all__ = ["get_config"]
 class Config:
     model: str
 
-    batch_size: int = 16
-    num_workers: int = 8
-    max_epoch: int = 100
+    batch_size: int = 64
+    num_workers: int = 16
+    max_epoch: int = 1000
 
     g_lr: float = 0.0001
     d_lr: float = 0.0004
     beta1: float = 0.0
     beta2: float = 0.9
+
+    size: int = 64
+    z_dim: int = 20
 
     train_csv: str = "./csv/data.csv"
 

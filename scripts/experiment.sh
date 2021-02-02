@@ -1,5 +1,5 @@
 python utils/make_csv_file.py
-python utils/make_configs.py --model DCGAN --batch_size 64
+python utils/make_configs.py --model DCGAN
 
 files="./result/*"
 for filepath in $files; do

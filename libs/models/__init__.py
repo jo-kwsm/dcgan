@@ -9,9 +9,9 @@ from .modules import Generator, Discriminator
 __all__ = ["get_model"]
 
 
-def get_model(pretrained: bool = True) -> Dict[str, nn.Module]:
-    G = Generator()
-    D = Discriminator()
+def get_model(z_dim: int = 20, image_size: int = 64) -> Dict[str, nn.Module]:
+    G = Generator(z_dim, image_size)
+    D = Discriminator(z_dim, image_size)
 
     G.apply(weights_init)
     D.apply(weights_init)

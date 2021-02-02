@@ -59,7 +59,7 @@ def main():
         transform=ImageTransform(mean=get_mean(), std=get_std()),
     )
 
-    model = get_model()
+    model = get_model(z_dim=config.z_dim, image_size=config.size)
     for v in model.values():
         v.to(device)
 
@@ -84,14 +84,15 @@ def main():
     log = pd.DataFrame(
         columns=[
             "epoch",
-            "lr",
+            "d_lr",
+            "g_lr",
             "train_time[sec]",
             "train_loss",
         ]
     )
 
     if args.resume:
-        resume_path = os.path.join(result_path, "checkpoint.pth")
+        resume_path = os.path.join(result_path, "checkpoint_%s.pth")
         begin_epoch, model, optimizer, best_loss = resume(resume_path, model, optimizer)
 
         log_path = os.path.join(result_path, "log.csv")
@@ -110,24 +111,27 @@ def main():
             criterion,
             optimizer,
             epoch,
+            config.z_dim,
             device,
-            interval_of_progress=10,
+            interval_of_progress=1,
         )
         train_time = int(time.time() - start)
 
         if best_loss > train_loss:
             best_loss = train_loss
-            torch.save(
-                model.state_dict(),
-                os.path.join(result_path, "best_model.prm"),
-            )
+            for k in model.keys():
+                torch.save(
+                    model[k].state_dict(),
+                    os.path.join(result_path, "best_model_%s.prm" % k),
+                )
 
         save_checkpoint(result_path, epoch, model, optimizer, best_loss)
 
         tmp = pd.Series(
             [
                 epoch,
-                optimizer.param_groups[0]["lr"],
+                optimizer["D"].param_groups[0]["lr"],
+                optimizer["G"].param_groups[0]["lr"],
                 train_time,
                 train_loss,
             ],
@@ -139,15 +143,20 @@ def main():
         make_graphs(os.path.join(result_path, "log.csv"))
 
         print(
-            "epoch: {}\tepoch time[sec]: {}\tlr: {}\ttrain loss: {:.4f}".format(
+            "epoch: {}\tepoch time[sec]: {}\tD_lr: {}\tG_lr: {}\ttrain loss: {:.4f}".format(
                 epoch,
-                train_time + val_time,
-                optimizer.param_groups[0]["lr"],
+                train_time,
+                optimizer["D"].param_groups[0]["lr"],
+                optimizer["G"].param_groups[0]["lr"],
                 train_loss,
             )
         )
 
-    torch.save(model.state_dict(), os.path.join(result_path, "final_model.prm"))
+    for k in model.keys():
+        torch.save(
+            model[k].state_dict(),
+            os.path.join(result_path, "final_model_%s.prm" % k),
+        )
 
     os.remove(os.path.join(result_path, "checkpoint.pth"))
 

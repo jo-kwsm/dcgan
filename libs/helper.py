@@ -16,6 +16,7 @@ def do_one_iteration(
     sample: Dict[str, Any],
     model: Dict[str, nn.Module],
     criterion: Any,
+    z_dim: int,
     device: str,
     iter_type: str,
     optimizer: Dict[str, Optional[optim.Optimizer]] = None,
@@ -27,18 +28,18 @@ def do_one_iteration(
     if iter_type == "train" and optimizer is None:
         raise ValueError("optimizer must be set during training.")
 
-    x = sample["img"].to(device)
-    batch_size = x.shape[0]
+    imgs = sample["img"].to(device)
+    batch_size = imgs.shape[0]
 
     label_real = torch.full((batch_size,), 1).to(device)
     label_fake = torch.full((batch_size,), 0).to(device)
 
-    input_z = torch.randn(mini_batch_size, z_dim).to(device)
-    input_z = input_z.view(input_z.size(0), input_z.size(1), 1, 1)
+    d_input_z = torch.randn(batch_size, z_dim).to(device)
+    d_input_z = d_input_z.view(d_input_z.size(0), d_input_z.size(1), 1, 1)
 
-    fake_images = model["G"](input_z)
-    d_out_fake = model["D"](fake_images)
-    d_out_real = model["D"](imges)
+    d_fake_imgs = model["G"](d_input_z)
+    d_out_fake = model["D"](d_fake_imgs)
+    d_out_real = model["D"](imgs)
 
     loss_real = criterion(d_out_real.view(-1), label_real)
     loss_fake = criterion(d_out_fake.view(-1), label_fake)
@@ -50,13 +51,13 @@ def do_one_iteration(
         d_loss.backward()
         optimizer["D"].step()
 
-    input_z = torch.randn(mini_batch_size, z_dim).to(device)
-    input_z = input_z.view(input_z.size(0), input_z.size(1), 1, 1)
+    g_input_z = torch.randn(batch_size, z_dim).to(device)
+    g_input_z = g_input_z.view(g_input_z.size(0), g_input_z.size(1), 1, 1)
 
-    fake_images = model["G"](input_z)
-    d_out_fake = model["D"](fake_images)
+    g_fake_imgs = model["G"](g_input_z)
+    g_out_fake = model["D"](g_fake_imgs)
 
-    g_loss = criterion(d_out_fake.view(-1), label_real)
+    g_loss = criterion(g_out_fake.view(-1), label_real)
 
     if iter_type == "train" and optimizer is not None:
         optimizer["G"].zero_grad()
@@ -75,6 +76,7 @@ def train(
     criterion: Any,
     optimizer: optim.Optimizer,
     epoch: int,
+    z_dim: int,
     device: str,
     interval_of_progress: int = 50,
 ) -> Tuple[float, float, float]:
@@ -106,6 +108,7 @@ def train(
             sample,
             model,
             criterion,
+            z_dim,
             device,
             "train",
             optimizer,
@@ -126,6 +129,7 @@ def evaluate(
     loader: DataLoader,
     model: nn.Module,
     criterion: Any,
+    z_dim: int,
     device: str,
 ) -> float:
     losses = AverageMeter("Loss", ":.4e")
@@ -143,6 +147,7 @@ def evaluate(
                 sample,
                 model,
                 criterion,
+                z_dim,
                 device,
                 "evaluate",
             )
