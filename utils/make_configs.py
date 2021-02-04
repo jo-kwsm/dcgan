@@ -96,7 +96,6 @@ def main() -> None:
         dir_name = "_".join(param_list)
         dir_path = os.path.join(args.root_dir, dir_name)
         if not os.path.exists(dir_path):
-            print(dir_name)
             os.makedirs(dir_path)
 
         config_path = os.path.join(dir_path, "config.yaml")

@@ -24,7 +24,9 @@ def get_arguments() -> argparse.Namespace:
 
 def make_line(data_name:str, data:pd.DataFrame, save_dir:str) -> None:
     plt.figure()
-    plt.plot(data["train_" + data_name], label="train")
+    plt.plot(data["train_" + data_name], label="sum")
+    plt.plot(data["train_d_" + data_name], label="discriminator")
+    plt.plot(data["train_g_" + data_name], label="generator")
     plt.xlabel("epoch")
     plt.ylabel(data_name)
     plt.legend()

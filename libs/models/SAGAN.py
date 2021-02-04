@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 
@@ -6,28 +7,40 @@ class SAGenerator(nn.Module):
         super().__init__()
 
         self.layer1 = nn.Sequential(
-            nn.ConvTranspose2d(z_dim, image_size * 8, kernel_size=4, stride=1),
+            nn.utils.spectral_norm(
+                nn.ConvTranspose2d(z_dim, image_size * 8, kernel_size=4, stride=1)
+            ),
             nn.BatchNorm2d(image_size * 8),
             nn.ReLU(inplace=True),
         )
 
         self.layer2 = nn.Sequential(
-            nn.ConvTranspose2d(image_size * 8, image_size * 4, kernel_size=4, stride=2, padding=1),
+            nn.utils.spectral_norm(
+                nn.ConvTranspose2d(image_size * 8, image_size * 4, kernel_size=4, stride=2, padding=1)
+            ),
             nn.BatchNorm2d(image_size * 4),
             nn.ReLU(inplace=True),
         )
 
         self.layer3 = nn.Sequential(
-            nn.ConvTranspose2d(image_size * 4, image_size * 2, kernel_size=4, stride=2, padding=1),
+            nn.utils.spectral_norm(
+                nn.ConvTranspose2d(image_size * 4, image_size * 2, kernel_size=4, stride=2, padding=1)
+            ),
             nn.BatchNorm2d(image_size * 2),
             nn.ReLU(inplace=True),
         )
 
+        self.self_attention1 = Self_Attention(in_dim=image_size * 2)
+
         self.layer4 = nn.Sequential(
-            nn.ConvTranspose2d(image_size * 2, image_size, kernel_size=4, stride=2, padding=1),
+            nn.utils.spectral_norm(
+                nn.ConvTranspose2d(image_size * 2, image_size, kernel_size=4, stride=2, padding=1)
+            ),
             nn.BatchNorm2d(image_size),
             nn.ReLU(inplace=True),
         )
+
+        self.self_attention2 = Self_Attention(in_dim=image_size)
 
         self.last = nn.Sequential(
             nn.ConvTranspose2d(image_size, 1, kernel_size=4, stride=2, padding=1),
@@ -38,10 +51,12 @@ class SAGenerator(nn.Module):
         output = self.layer1(z)
         output = self.layer2(output)
         output = self.layer3(output)
+        output, attention_map1 = self.self_attention1(output)
         output = self.layer4(output)
+        output, attention_map2 = self.self_attention2(output)
         output = self.last(output)
 
-        return output
+        return output, attention_map1, attention_map2
 
 
 class SADiscriminator(nn.Module):
@@ -49,35 +64,48 @@ class SADiscriminator(nn.Module):
         super().__init__()
 
         self.layer1 = nn.Sequential(
-            nn.Conv2d(1, image_size, kernel_size=4, stride=2, padding=1),
+            nn.utils.spectral_norm(
+                nn.Conv2d(1, image_size, kernel_size=4, stride=2, padding=1)),
             nn.LeakyReLU(0.1, inplace=True),
         )
 
         self.layer2 = nn.Sequential(
-            nn.Conv2d(image_size, image_size*2, kernel_size=4, stride=2, padding=1),
+            nn.utils.spectral_norm(
+                nn.Conv2d(image_size, image_size*2, kernel_size=4, stride=2, padding=1)
+            ),
             nn.LeakyReLU(0.1, inplace=True),
         )
 
         self.layer3 = nn.Sequential(
-            nn.Conv2d(image_size*2, image_size*4, kernel_size=4, stride=2, padding=1),
+            nn.utils.spectral_norm(
+                nn.Conv2d(image_size*2, image_size*4, kernel_size=4, stride=2, padding=1)
+            ),
             nn.LeakyReLU(0.1, inplace=True),
         )
 
+        self.self_attention1 = Self_Attention(in_dim=image_size*4)
+
         self.layer4 = nn.Sequential(
-            nn.Conv2d(image_size*4, image_size*8, kernel_size=4, stride=2, padding=1),
+            nn.utils.spectral_norm(
+                nn.Conv2d(image_size*4, image_size*8, kernel_size=4, stride=2, padding=1)
+            ),
             nn.LeakyReLU(0.1, inplace=True),
         )
+
+        self.self_attention2 = Self_Attention(in_dim=image_size*8)
 
         self.last = nn.Conv2d(image_size*8, 1, kernel_size=4, stride=1)
 
-    def forward(self, x):
-        output = self.layer1(x)
+    def forward(self, z):
+        output = self.layer1(z)
         output = self.layer2(output)
         output = self.layer3(output)
+        output, attention_map1 = self.self_attention1(output)
         output = self.layer4(output)
+        output, attention_map2 = self.self_attention2(output)
         output = self.last(output)
 
-        return output
+        return output, attention_map1, attention_map2
 
 
 class Self_Attention(nn.Module):
@@ -94,7 +122,7 @@ class Self_Attention(nn.Module):
             out_channels=in_dim//8,
             kernel_size=1
         )
-        self.value_conv = nnn.Conv2d(
+        self.value_conv = nn.Conv2d(
             in_channels=in_dim,
             out_channels=in_dim,
             kernel_size=1

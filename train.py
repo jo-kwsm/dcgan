@@ -12,7 +12,7 @@ from libs.config import get_config
 from libs.dataset import get_dataloader
 from libs.device import get_device
 from libs.graph import make_graphs
-from libs.helper import evaluate, train
+from libs.helper import train
 from libs.mean_std import get_mean, get_std
 from libs.models import get_model
 from libs.transformer import ImageTransform
@@ -88,6 +88,8 @@ def main():
             "g_lr",
             "train_time[sec]",
             "train_loss",
+            "train_d_loss",
+            "train_g_loss",
         ]
     )
 
@@ -105,9 +107,10 @@ def main():
 
     for epoch in range(begin_epoch, config.max_epoch):
         start = time.time()
-        train_loss = train(
+        train_d_loss, train_g_loss,  = train(
             train_loader,
             model,
+            config.model,
             criterion,
             optimizer,
             epoch,
@@ -117,8 +120,8 @@ def main():
         )
         train_time = int(time.time() - start)
 
-        if best_loss > train_loss:
-            best_loss = train_loss
+        if best_loss > train_d_loss + train_g_loss:
+            best_loss = train_d_loss + train_g_loss
             for k in model.keys():
                 torch.save(
                     model[k].state_dict(),
@@ -133,7 +136,9 @@ def main():
                 optimizer["D"].param_groups[0]["lr"],
                 optimizer["G"].param_groups[0]["lr"],
                 train_time,
-                train_loss,
+                train_d_loss + train_g_loss,
+                train_d_loss,
+                train_g_loss,
             ],
             index=log.columns,
         )
@@ -143,12 +148,14 @@ def main():
         make_graphs(os.path.join(result_path, "log.csv"))
 
         print(
-            "epoch: {}\tepoch time[sec]: {}\tD_lr: {}\tG_lr: {}\ttrain loss: {:.4f}".format(
+            "epoch: {}\tepoch time[sec]: {}\tD_lr: {}\tG_lr: {}\ttrain loss: {:.4f}\ttrain d_loss: {:.4f}\ttrain g_loss: {:.4f}".format(
                 epoch,
                 train_time,
                 optimizer["D"].param_groups[0]["lr"],
                 optimizer["G"].param_groups[0]["lr"],
-                train_loss,
+                train_d_loss + train_g_loss,
+                train_d_loss,
+                train_g_loss,
             )
         )
 

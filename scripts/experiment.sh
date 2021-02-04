@@ -1,5 +1,5 @@
 python utils/make_csv_file.py
-python utils/make_configs.py --model DCGAN
+python utils/make_configs.py --model DCGAN SAGAN
 
 files="./result/*"
 for filepath in $files; do
