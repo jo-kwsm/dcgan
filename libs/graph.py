@@ -44,6 +44,7 @@ def make_graphs(log_path:str) -> None:
 def make_image(
     loader: DataLoader,
     model: nn.Module,
+    model_name: str,
     save_dir: str,
     z_dim: int,
     device: str,
@@ -54,7 +55,11 @@ def make_image(
     fixed_z = fixed_z.view(fixed_z.size(0), fixed_z.size(1), 1, 1)
 
     model["G"].eval()
-    fake_images = model["G"](fixed_z.to(device))
+    if model_name == "DCGAN":
+        fake_images = model["G"](fixed_z.to(device))
+    elif model_name == "SAGAN":
+        fake_images, am1, am2 = model["G"](fixed_z.to(device))
+
 
     batch_iterator = iter(loader)
     imges = next(batch_iterator)
@@ -68,6 +73,20 @@ def make_image(
         plt.imshow(fake_images[i][0].cpu().detach().numpy(), 'gray')
 
     plt.savefig(os.path.join(save_dir, "result.png"))
+    plt.close()
+
+    if model_name == "SAGAN":
+        fig = plt.figure(figsize=(15, 6))
+        for i in range(0, 5):
+            plt.subplot(2, 5, i+1)
+            plt.imshow(fake_images[i][0].cpu().detach().numpy(), 'gray')
+
+            plt.subplot(2, 5, 5+i+1)
+            am = am1[i].view(16, 16, 16, 16)
+            am = am[7][7]  # 中央に着目
+            plt.imshow(am.cpu().detach().numpy(), 'Reds')
+
+        plt.savefig(os.path.join(save_dir, "attention.png"))
 
 
 def main() -> None:

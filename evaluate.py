@@ -44,7 +44,7 @@ def main():
 
     model = get_model(name=config.model, z_dim=config.z_dim, image_size=config.size)
     for k, v in model.items():
-        state_dict = torch.load(os.path.join(result_path, "best_model_%s.prm" % k))
+        state_dict = torch.load(os.path.join(result_path, "final_model_%s.prm" % k))
 
         v.load_state_dict(state_dict)
         v.to(device)
@@ -63,6 +63,7 @@ def main():
     make_image(
         train_loader,
         model,
+        config.model,
         result_path,
         config.z_dim,
         device,
