@@ -1,9 +1,7 @@
 import torch.nn as nn
 
-__all__ = ["Generator"]
 
-
-class Generator(nn.Module):
+class SAGenerator(nn.Module):
     def __init__(self, z_dim=20, image_size=64):
         super().__init__()
 
@@ -46,7 +44,7 @@ class Generator(nn.Module):
         return output
 
 
-class Discriminator(nn.Module):
+class SADiscriminator(nn.Module):
     def __init__(self, z_dim=20, image_size=64):
         super().__init__()
 
@@ -82,12 +80,72 @@ class Discriminator(nn.Module):
         return output
 
 
+class Self_Attention(nn.Module):
+    def __init__(self, in_dim):
+        super().__init__()
+
+        self.query_conv = nn.Conv2d(
+            in_channels=in_dim,
+            out_channels=in_dim//8,
+            kernel_size=1
+        )
+        self.key_conv = nn.Conv2d(
+            in_channels=in_dim,
+            out_channels=in_dim//8,
+            kernel_size=1
+        )
+        self.value_conv = nnn.Conv2d(
+            in_channels=in_dim,
+            out_channels=in_dim,
+            kernel_size=1
+        )
+
+        self.softmax = nn.Softmax(dim=-2)
+        self.gamma = nn.Parameter(torch.zeros(1))
+
+    def forward(self, x):
+        X = x
+
+        proj_query = self.query_conv(X).view(
+            X.shape[0],
+            -1,
+            X.shape[2]*X.shape[3]
+        )
+        proj_query = proj_query.permute(0, 2, 1)
+        proj_key = self.key_conv(X).view(
+            X.shape[0],
+            -1,
+            X.shape[2]*X.shape[3]
+        )
+
+        S = torch.bmm(proj_query, proj_key)
+
+        attention_map_T = self.softmax(S)
+        attention_map = attention_map_T.permute(0, 2, 1)
+
+        proj_value = self.value_conv(X).view(
+            X.shape[0],
+            -1,
+            X.shape[2]*X.shape[3]
+        )
+        o = torch.bmm(
+            proj_value,
+            attention_map.permute(0, 2, 1)
+        )
+
+        o = o.view(X.shape[0], X.shape[1], X.shape[2], X.shape[3])
+        out = x+self.gamma*o
+
+        return out, attention_map
+
+
+
 def gd_test():
     import matplotlib.pyplot as plt
     import torch
 
-    G = Generator(z_dim=20, image_size=64)
-    D = Discriminator(z_dim=20, image_size=64)
+    G = SAGenerator(z_dim=20, image_size=64)
+    D = SADiscriminator(z_dim=20, image_size=64)
 
     input_z = torch.randn(1, 20)
     input_z = input_z.view(input_z.size(0), input_z.size(1), 1, 1)

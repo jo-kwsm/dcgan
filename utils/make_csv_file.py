@@ -30,7 +30,7 @@ def main() -> None:
         "image_path": [],
     }
 
-    for idx in range(200):
+    for idx in range(1000):
         img_path = os.path.join(args.dataset_dir, "img_%s_%s.jpg")
         data["image_path"].append(img_path % (7, idx))
         data["image_path"].append(img_path % (8, idx))

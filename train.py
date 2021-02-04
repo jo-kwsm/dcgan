@@ -43,7 +43,7 @@ def main():
     result_path = os.path.dirname(args.config)
     experiment_name = os.path.basename(result_path)
 
-    if os.path.exists(os.path.join(result_path, "final_model.prm")):
+    if os.path.exists(os.path.join(result_path, "final_model_G.prm")):
         print("Already done.")
         return
 
@@ -59,7 +59,7 @@ def main():
         transform=ImageTransform(mean=get_mean(), std=get_std()),
     )
 
-    model = get_model(z_dim=config.z_dim, image_size=config.size)
+    model = get_model(config.model, z_dim=config.z_dim, image_size=config.size)
     for v in model.values():
         v.to(device)
 
@@ -158,7 +158,8 @@ def main():
             os.path.join(result_path, "final_model_%s.prm" % k),
         )
 
-    os.remove(os.path.join(result_path, "checkpoint.pth"))
+    for k in model.keys():
+        os.remove(os.path.join(result_path, "checkpoint_%s.pth" % k))
 
     print("Done")
 

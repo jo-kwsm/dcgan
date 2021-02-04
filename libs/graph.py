@@ -3,6 +3,9 @@ import os
 
 import pandas as pd
 import matplotlib.pyplot as plt
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
 
 
 def get_arguments() -> argparse.Namespace:
@@ -34,6 +37,35 @@ def make_graphs(log_path:str) -> None:
     save_dir = os.path.dirname(log_path)
     make_line("loss", logs, save_dir)
     # TODO 評価指標
+
+
+def make_image(
+    loader: DataLoader,
+    model: nn.Module,
+    save_dir: str,
+    z_dim: int,
+    device: str,
+    batch_size: int = 8,
+    ) -> None:
+
+    fixed_z = torch.randn(batch_size, z_dim)
+    fixed_z = fixed_z.view(fixed_z.size(0), fixed_z.size(1), 1, 1)
+
+    model["G"].eval()
+    fake_images = model["G"](fixed_z.to(device))
+
+    batch_iterator = iter(loader)
+    imges = next(batch_iterator)
+
+    fig = plt.figure(figsize=(15, 6))
+    for i in range(0, 5):
+        plt.subplot(2, 5, i+1)
+        plt.imshow(imges[i][0].cpu().detach().numpy(), 'gray')
+
+        plt.subplot(2, 5, 5+i+1)
+        plt.imshow(fake_images[i][0].cpu().detach().numpy(), 'gray')
+
+    plt.savefig(os.path.join(save_dir, "result.png"))
 
 
 def main() -> None:

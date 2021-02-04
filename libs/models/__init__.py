@@ -4,14 +4,31 @@ from typing import Dict
 import torch
 import torch.nn as nn
 
-from .modules import Generator, Discriminator
+from .DCGAN import DCGenerator, DCDiscriminator
+from .SAGAN import SAGenerator, SADiscriminator
 
 __all__ = ["get_model"]
 
+model_names = ["DCGAN", "SAGAN"]
 
-def get_model(z_dim: int = 20, image_size: int = 64) -> Dict[str, nn.Module]:
-    G = Generator(z_dim, image_size)
-    D = Discriminator(z_dim, image_size)
+
+def get_model(name: str, z_dim: int = 20, image_size: int = 64) -> Dict[str, nn.Module]:
+    name = name.upper()
+    if name not in model_names:
+        raise ValueError(
+            """There is no model appropriate to your choice.
+            You have to choose DCGAN or SAGAN as a model.
+        """
+        )
+
+    print("{} will be used as a model.".format(name))
+    
+    if name == "DCGAN":
+        G = DCGenerator(z_dim, image_size)
+        D = DCDiscriminator(z_dim, image_size)
+    elif name == "SAGAN":
+        G = SAGenerator(z_dim, image_size)
+        D = SADiscriminator(z_dim, image_size)
 
     G.apply(weights_init)
     D.apply(weights_init)
